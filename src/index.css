@@ -1,0 +1,57 @@
+/* =================================================================
+   FILE: src/index.css
+   역할: Tailwind CSS를 불러오는 파일 (관리자용 다운로드 버튼 스타일 추가)
+   ================================================================= */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Styles for Enhanced UI */
+.card-hover {
+  @apply transition-all duration-300 ease-in-out hover:-translate-y-2 hover:shadow-xl;
+}
+
+.glass-effect {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.neon-glow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.floating-card {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.sidebar-gradient {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.modern-input {
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.modern-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.progress-bar {
+  transition: width 1s ease-in-out;
+}
+
+@layer components {
+  .download-button {
+    @apply w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-blue-100 hover:text-blue-700 font-semibold text-sm transition-colors;
+  }
+  .download-button-admin {
+    @apply w-full text-center p-2 bg-gray-100 rounded-lg hover:bg-indigo-100 hover:text-indigo-700 font-medium text-sm transition-colors disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed;
+  }
+}

@@ -1,0 +1,37 @@
+# 의존성
+node_modules/
+
+# 빌드 결과물
+dist/
+오프라인_배포_패키지/
+
+# 환경 변수
+.env
+.env.local
+.env.production
+
+# 로그
+*.log
+npm-debug.log*
+
+# 에디터
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 임시 파일
+*.tmp
+*.temp
+
+# 압축 파일 (배포용 zip 제외하고 싶으면 주석 처리)
+*.zip
+
+# 테스트 파일
+테스트_*.bat
