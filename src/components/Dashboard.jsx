@@ -38,11 +38,15 @@ const ScoreCard = ({ title, score, maxScore, color, details, downloads = {}, onD
             return (
                 <div className="mt-4 pt-4 border-t flex flex-wrap gap-2 items-end">
                     {btn('민자사업자_제외', '민자사업자 제외 DB')}
-                    {btn('관리그룹_포함', '관리그룹 포함')}
-                    {btn('관리그룹_제외', '관리그룹 제외')}
+                    <div key="group-excl" className="flex flex-col gap-1">
+                        {btn('관리그룹_포함', '관리그룹 포함')}
+                        {btn('관리그룹_제외', '관리그룹 제외')}
+                    </div>
                     {btn('등급확인', '등급확인', '분모')}
-                    {btn('목표등급_만족', '목표등급 만족', '분자')}
-                    {btn('목표등급_불만족', '목표등급 불만족')}
+                    <div key="grade-pair" className="flex flex-col gap-1">
+                        {btn('목표등급_만족', '목표등급 만족', '분자')}
+                        {btn('목표등급_불만족', '목표등급 불만족')}
+                    </div>
                 </div>
             );
         }
