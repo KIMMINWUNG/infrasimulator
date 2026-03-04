@@ -40,7 +40,7 @@ const ScoreCard = ({ title, score, maxScore, color, details, downloads = {}, onD
                     <div className="pt-8">{btn('민자사업자_제외', '민자사업자 제외 DB')}</div>
                     <div key="group-excl" className="flex flex-col gap-1">
                         <div className="pt-8">{btn('관리그룹_포함', '관리그룹 포함')}</div>
-                        {btn('관리그룹_제외', '관리그룹 제외')}
+                        <div className="pt-1">{btn('관리그룹_제외', '관리그룹 제외')}</div>
                     </div>
                     {btn('등급확인', '등급확인', '분모')}
                     <div key="grade-pair" className="flex flex-col gap-1">

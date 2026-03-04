@@ -286,7 +286,9 @@ export default function AdminPanel({
                                 <h3 className="font-semibold text-gray-800">상세 DB 다운로드 (전체 지자체)</h3>
                             </div>
                             <div className="flex flex-wrap gap-3 items-start">
-                                <button onClick={() => onDownloadBulkData('실행계획_미제출')} disabled={isBulkLoading || !bulkResults.length} className="px-3 py-2 text-sm font-semibold rounded-lg border bg-transparent hover:opacity-80 disabled:opacity-50 transition-all" style={{ borderColor: '#3b82f6', color: '#3b82f6' }}>실행계획 미제출 DB</button>
+                                <div className="pt-8">
+                                    <button onClick={() => onDownloadBulkData('실행계획_미제출')} disabled={isBulkLoading || !bulkResults.length} className="px-3 py-2 text-sm font-semibold rounded-lg border bg-transparent hover:opacity-80 disabled:opacity-50 transition-all" style={{ borderColor: '#3b82f6', color: '#3b82f6' }}>실행계획 미제출 DB</button>
+                                </div>
                                 <div className="pt-8">
                                     <button onClick={() => onDownloadBulkData('민자사업자_제외')} disabled={isBulkLoading || !bulkResults.length} className="px-3 py-2 text-sm font-semibold rounded-lg border bg-transparent hover:opacity-80 disabled:opacity-50 transition-all" style={{ borderColor: '#0d9488', color: '#0d9488' }}>민자사업자 제외 DB</button>
                                 </div>
@@ -294,7 +296,9 @@ export default function AdminPanel({
                                     <div className="pt-8">
                                         <button onClick={() => onDownloadBulkData('관리그룹_포함')} disabled={isBulkLoading || !bulkResults.length} className="px-3 py-2 text-sm font-semibold rounded-lg border bg-transparent hover:opacity-80 disabled:opacity-50 transition-all" style={{ borderColor: '#16a34a', color: '#16a34a' }}>관리그룹 포함</button>
                                     </div>
-                                    <button onClick={() => onDownloadBulkData('관리그룹_제외')} disabled={isBulkLoading || !bulkResults.length} className="px-3 py-2 text-sm font-semibold rounded-lg border bg-transparent hover:opacity-80 disabled:opacity-50 transition-all" style={{ borderColor: '#ca8a04', color: '#ca8a04' }}>관리그룹 제외</button>
+                                    <div className="pt-1">
+                                        <button onClick={() => onDownloadBulkData('관리그룹_제외')} disabled={isBulkLoading || !bulkResults.length} className="px-3 py-2 text-sm font-semibold rounded-lg border bg-transparent hover:opacity-80 disabled:opacity-50 transition-all" style={{ borderColor: '#ca8a04', color: '#ca8a04' }}>관리그룹 제외</button>
+                                    </div>
                                 </div>
                                 <div className="rounded-lg p-1.5 border-2 border-purple-500 bg-purple-50/80">
                                     <div className="text-xs font-bold text-purple-600 mb-1">분모</div>
