@@ -6,11 +6,69 @@ import React from 'react';
 
 const cardHoverEffect = "transition-all duration-300 ease-in-out hover:-translate-y-2 hover:shadow-xl";
 
-const ScoreCard = ({ title, score, maxScore, color, details, downloads = {}, onDownload, icon, borderColor }) => {
+const PURPLE_HIGHLIGHT = '#7c3aed';
+
+const ScoreCard = ({ title, score, maxScore, color, details, downloads = {}, onDownload, icon, borderColor, downloadLayout }) => {
     const numericScore = Number(score) || 0;
     const numericMaxScore = Number(maxScore) || 0;
     const percentage = numericMaxScore > 0 ? (numericScore / numericMaxScore) * 100 : 0;
-    
+
+    const renderDownloadButtons = () => {
+        const hasAny = Object.keys(downloads || {}).some((k) => downloads[k] && downloads[k].length > 0);
+        if (!hasAny) return null;
+
+        if (downloadLayout === 'maintain') {
+            const btn = (key, label, highlight) => {
+                const data = downloads[key];
+                if (!data || data.length === 0) return null;
+                const isHighlight = highlight === '분모' || highlight === '분자';
+                return (
+                    <div key={key} className={isHighlight ? 'inline-block rounded-lg p-1.5 border-2 border-purple-500 bg-purple-50/80' : ''}>
+                        {isHighlight && <div className="text-xs font-bold text-purple-600 mb-1">{highlight}</div>}
+                        <button
+                            onClick={() => onDownload(key)}
+                            className="px-3 py-1.5 rounded-md text-sm font-semibold border bg-transparent hover:opacity-80 transition-colors"
+                            style={{ borderColor: isHighlight ? PURPLE_HIGHLIGHT : color, color: isHighlight ? PURPLE_HIGHLIGHT : color }}
+                        >
+                            {label}
+                        </button>
+                    </div>
+                );
+            };
+            return (
+                <div className="mt-4 pt-4 border-t space-y-3">
+                    <div className="flex flex-wrap gap-2">{btn('민자사업자_제외', '민자사업자 제외 DB')}</div>
+                    <div className="flex flex-wrap gap-2">
+                        {btn('관리그룹_포함', '관리그룹 포함')}
+                        {btn('관리그룹_제외', '관리그룹 제외')}
+                    </div>
+                    <div className="flex flex-wrap gap-2">{btn('등급확인', '등급확인', '분모')}</div>
+                    <div className="flex flex-wrap gap-2">{btn('목표등급_만족', '목표등급 만족', '분자')}</div>
+                    <div className="flex flex-wrap gap-2">{btn('목표등급_불만족', '목표등급 불만족')}</div>
+                </div>
+            );
+        }
+
+        const downloadKeys = Object.keys(downloads || {}).filter((k) => !!downloads[k]);
+        if (downloadKeys.length === 0) return null;
+        return (
+            <div className="mt-4 pt-4 border-t">
+                <div className="flex flex-wrap gap-2">
+                    {downloadKeys.map((key) => (
+                        <button
+                            key={key}
+                            onClick={() => onDownload(key)}
+                            className="px-3 py-1.5 rounded-md text-sm font-semibold border bg-transparent hover:opacity-80 transition-colors"
+                            style={{ borderColor: color, color: color }}
+                        >
+                            {key.replace(/_/g, ' ')}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className={`bg-white rounded-xl shadow-md ${cardHoverEffect} p-6 border-l-6`} style={{ borderLeftColor: borderColor }}>
             <div className="flex items-center justify-between mb-4">
@@ -22,7 +80,6 @@ const ScoreCard = ({ title, score, maxScore, color, details, downloads = {}, onD
                         <h3 className="text-lg font-bold text-gray-800">{title}</h3>
                     </div>
                 </div>
-                {/* 상태 뱃지 제거 */}
             </div>
             
             <div className="grid grid-cols-2 gap-6 items-center">
@@ -33,7 +90,6 @@ const ScoreCard = ({ title, score, maxScore, color, details, downloads = {}, onD
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
                         <div className="h-3 rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%`, background: `linear-gradient(to right, ${color}, ${color}dd)` }}></div>
                     </div>
-                    {/* 버튼은 카드 하단 전체영역에 렌더링하므로 여기선 표시하지 않음 */}
                     
                     <div className="space-y-2">
                         {Object.entries(details).map(([key, value]) => (
@@ -52,27 +108,7 @@ const ScoreCard = ({ title, score, maxScore, color, details, downloads = {}, onD
                 </div>
             </div>
 
-            {/* 카드 하단 전체영역: 시뮬레이터 실행 후에만 버튼 표시 */}
-            {(() => {
-                const downloadKeys = Object.keys(downloads || {}).filter((k) => !!downloads[k]);
-                if (downloadKeys.length === 0) return null;
-                return (
-                    <div className="mt-4 pt-4 border-t">
-                        <div className="flex flex-wrap gap-2">
-                            {downloadKeys.map((key) => (
-                                <button
-                                    key={key}
-                                    onClick={() => onDownload(key)}
-                                    className="px-3 py-1.5 rounded-md text-sm font-semibold border bg-transparent hover:opacity-80 transition-colors"
-                                    style={{ borderColor: color, color: color }}
-                                >
-                                    {key.replace(/_/g, ' ')}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                );
-            })()}
+            {renderDownloadButtons()}
         </div>
     );
 };
@@ -112,6 +148,7 @@ export default function Dashboard({ scores, downloadableData, onDownload }) {
         '민자사업자_제외': downloadableData['민자사업자_제외'],
         '관리그룹_포함': downloadableData['관리그룹_포함'],
         '관리그룹_제외': downloadableData['관리그룹_제외'],
+        '등급확인': downloadableData['등급확인'],
         '목표등급_만족': downloadableData['목표등급_만족'],
         '목표등급_불만족': downloadableData['목표등급_불만족']
     };
@@ -153,6 +190,7 @@ export default function Dashboard({ scores, downloadableData, onDownload }) {
                     details={scores.maintain.details}
                     downloads={maintainDownloads}
                     onDownload={onDownload}
+                    downloadLayout="maintain"
                 />
                 <ScoreCard 
                     title="③ 성능개선 충당금 조례 제정 여부" 

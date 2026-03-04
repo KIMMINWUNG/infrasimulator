@@ -470,7 +470,7 @@ const calculateMaintain = (noticeWB, dbSheet, gov, managementEntity, excludePriv
     return {
         score,
         details: { "관리그룹 대상": included.length, "등급 확인(분모)": validGrades.length, "목표등급 만족(분자)": passed.length },
-        downloadableData: { "민자사업자_제외": dbBody.slice(0), "관리그룹_포함": included, "관리그룹_제외": excluded, "목표등급_만족": passed, "목표등급_불만족": failed }
+        downloadableData: { "민자사업자_제외": dbBody.slice(0), "관리그룹_포함": included, "관리그룹_제외": excluded, "등급확인": validGrades.slice(0), "목표등급_만족": passed, "목표등급_불만족": failed }
     };
 };
 
@@ -558,7 +558,7 @@ self.onmessage = async (e) => {
             
             const allDetailedData = {
                 '실행계획_미제출': {}, '민자사업자_제외': {}, '관리그룹_포함': {}, '관리그룹_제외': {},
-                '목표등급_만족': {}, '목표등급_불만족': {}
+                '등급확인': {}, '목표등급_만족': {}, '목표등급_불만족': {}
             };
 
             // 관리감독기관 필터와 시군구 토글에 따른 계산 대상 결정
@@ -648,6 +648,9 @@ self.onmessage = async (e) => {
                         : [];
                     allDetailedData['관리그룹_제외'][target.displayName] = metricsForBulk.maintain
                         ? (maintainResult.downloadableData['관리그룹_제외'] || []).slice(0)
+                        : [];
+                    allDetailedData['등급확인'][target.displayName] = metricsForBulk.maintain
+                        ? (maintainResult.downloadableData['등급확인'] || []).slice(0)
                         : [];
                     allDetailedData['목표등급_만족'][target.displayName] = metricsForBulk.maintain
                         ? (maintainResult.downloadableData['목표등급_만족'] || []).slice(0)
