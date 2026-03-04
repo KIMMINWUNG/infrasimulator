@@ -470,7 +470,7 @@ const calculateMaintain = (noticeWB, dbSheet, gov, managementEntity, excludePriv
     return {
         score,
         details: { "관리그룹 대상": included.length, "등급 확인(분모)": validGrades.length, "목표등급 만족(분자)": passed.length },
-        downloadableData: { "관리그룹_포함": included, "관리그룹_제외": excluded, "목표등급_만족": passed, "목표등급_불만족": failed }
+        downloadableData: { "민자사업자_제외": dbBody.slice(0), "관리그룹_포함": included, "관리그룹_제외": excluded, "목표등급_만족": passed, "목표등급_불만족": failed }
     };
 };
 
@@ -488,7 +488,7 @@ const calculateOrdinance = (sheet, gov) => {
 
 // --- 메인 이벤트 리스너 ---
 self.onmessage = async (e) => {
-    const { task, files, gov, managementEntity, excludePrivate, isAdminSigunguMode, selectedAgencyFilter, constants, planDeadlineYear, enabledMetrics } = e.data;
+    const { task, files, gov, managementEntity, excludePrivate, isAdminSigunguMode, selectedAgencyFilter, constants, planDeadlineYear, enabledMetrics, managementList: passedManagementList } = e.data;
     const planYear = planDeadlineYear === 2025 ? 2025 : 2026;
     const metrics = enabledMetrics || { plan: true, maintain: true, ordinance: true };
     
@@ -557,7 +557,7 @@ self.onmessage = async (e) => {
             }
             
             const allDetailedData = {
-                '실행계획_미제출': {}, '관리그룹_포함': {}, '관리그룹_제외': {},
+                '실행계획_미제출': {}, '민자사업자_제외': {}, '관리그룹_포함': {}, '관리그룹_제외': {},
                 '목표등급_만족': {}, '목표등급_불만족': {}
             };
 
@@ -580,9 +580,9 @@ self.onmessage = async (e) => {
                 // 시군구 토글이 켜진 경우: 관리주체 리스트에 있는 모든 항목 계산
                 self.postMessage({ type: 'bulk_progress', message: '관리주체별 상세 계산 모드로 진행 중...' });
                 
-                // 필터링된 관리감독기관에 대해 관리주체 리스트 생성
+                // 필터링된 관리감독기관에 대해 관리주체 리스트 생성 (CSV 목록 우선, 없으면 내부 목록 사용)
                 for (const gov of targetAgencies) {
-                    const managementEntities = getManagementEntitiesForGov(gov);
+                    const managementEntities = (passedManagementList && passedManagementList[gov]) ? passedManagementList[gov] : getManagementEntitiesForGov(gov);
                     
                     for (const entity of managementEntities) {
                         if (entity === "전체") continue; // "전체"는 제외
@@ -639,6 +639,9 @@ self.onmessage = async (e) => {
                     // 상세 데이터 수집 — 개별 모드와 동일하게, 선택된 항목에 대해서만 데이터 수집
                     allDetailedData['실행계획_미제출'][target.displayName] = metricsForBulk.plan
                         ? (planResult.downloadableData['실행계획_미제출'] || []).slice(0)
+                        : [];
+                    allDetailedData['민자사업자_제외'][target.displayName] = metricsForBulk.maintain
+                        ? (maintainResult.downloadableData['민자사업자_제외'] || []).slice(0)
                         : [];
                     allDetailedData['관리그룹_포함'][target.displayName] = metricsForBulk.maintain
                         ? (maintainResult.downloadableData['관리그룹_포함'] || []).slice(0)

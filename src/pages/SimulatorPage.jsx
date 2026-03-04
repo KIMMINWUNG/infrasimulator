@@ -10,13 +10,15 @@ import AdminLoginModal from '../components/AdminLoginModal';
 import Notification from '../components/Notification';
 import Footer from '../components/Footer';
 import useSimulator from '../hooks/useSimulator';
+import useManagementList from '../hooks/useManagementList';
 
 export default function SimulatorPage() {
+    const { agencyList, getManagementEntities, managementList } = useManagementList();
     const {
         state,
         setters,
         actions
-    } = useSimulator();
+    } = useSimulator(managementList);
     
     const [showAdminLogin, setShowAdminLogin] = useState(false);
     const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -68,6 +70,8 @@ export default function SimulatorPage() {
                 <main className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                     <div className="lg:col-span-2">
                         <ControlPanel
+                            agencyList={agencyList}
+                            getManagementEntities={getManagementEntities}
                             selectedGov={state.selectedGov}
                             excludePrivate={state.excludePrivate}
                             enabledMetrics={state.enabledMetrics}
@@ -106,6 +110,7 @@ export default function SimulatorPage() {
 
             {isAdminPanelOpen && (
                 <AdminPanel
+                    agencyList={agencyList}
                     onClose={() => setIsAdminPanelOpen(false)}
                     onRunBulkSim={actions.runBulkSimulation}
                     bulkResults={state.bulkResults}

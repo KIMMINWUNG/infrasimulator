@@ -19,7 +19,7 @@ const initialFiles = {
     ordinanceFile: null,
 };
 
-export default function useSimulator() {
+export default function useSimulator(managementListFromCSV = null) {
     const [selectedGov, setSelectedGov] = useState('');
     const [excludePrivate, setExcludePrivate] = useState(true);
     const [files, setFiles] = useState(initialFiles);
@@ -241,7 +241,8 @@ export default function useSimulator() {
             selectedAgencyFilter,
             planDeadlineYear,
             enabledMetrics,
-            constants: workerConstants
+            constants: workerConstants,
+            managementList: managementListFromCSV || null
         });
     };
 

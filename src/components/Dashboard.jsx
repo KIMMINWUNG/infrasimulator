@@ -109,6 +109,7 @@ export default function Dashboard({ scores, downloadableData, onDownload }) {
     };
 
     const maintainDownloads = {
+        '민자사업자_제외': downloadableData['민자사업자_제외'],
         '관리그룹_포함': downloadableData['관리그룹_포함'],
         '관리그룹_제외': downloadableData['관리그룹_제외'],
         '목표등급_만족': downloadableData['목표등급_만족'],

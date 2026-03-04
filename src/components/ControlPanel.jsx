@@ -4,12 +4,14 @@
 // =================================================================
 import React, { useState, useEffect } from 'react';
 import { LOCAL_GOV_LIST } from '../constants';
-import { getAgencyList, getManagementEntities } from '../utils/csvParser';
+import { getAgencyList, getManagementEntities as getManagementEntitiesFallback } from '../utils/csvParser';
 import FileUpload from './FileUpload';
 
 const cardHoverEffect = "transition-all duration-300 ease-in-out hover:-translate-y-2 hover:shadow-xl";
 
 export default function ControlPanel({
+    agencyList: agencyListProp,
+    getManagementEntities: getManagementEntitiesProp,
     selectedGov,
     excludePrivate,
     enabledMetrics,
@@ -28,25 +30,26 @@ export default function ControlPanel({
     const [selectedAgency, setSelectedAgency] = useState('');
     const [selectedManagementEntity, setSelectedManagementEntity] = useState('');
     const [managementEntities, setManagementEntities] = useState([]);
-    const [agencyList, setAgencyList] = useState([]);
+    const [agencyListLocal, setAgencyListLocal] = useState([]);
+
+    const agencyList = agencyListProp && agencyListProp.length > 0 ? agencyListProp : agencyListLocal;
+    const getManagementEntities = getManagementEntitiesProp || getManagementEntitiesFallback;
 
     useEffect(() => {
-        // 지자체 목록 로드
-        const agencies = getAgencyList();
-        setAgencyList(agencies);
-    }, []);
+        if (agencyListProp && agencyListProp.length > 0) return;
+        setAgencyListLocal(getAgencyList());
+    }, [agencyListProp]);
 
     useEffect(() => {
-        // 선택된 지자체가 변경될 때 관리주체 목록 업데이트
         if (selectedAgency) {
             const entities = getManagementEntities(selectedAgency);
             setManagementEntities(entities);
-            setSelectedManagementEntity(''); // 관리주체 선택 초기화
+            setSelectedManagementEntity('');
         } else {
             setManagementEntities([]);
             setSelectedManagementEntity('');
         }
-    }, [selectedAgency]);
+    }, [selectedAgency, getManagementEntities]);
 
     const handleAgencyChange = (agency) => {
         setSelectedAgency(agency);
