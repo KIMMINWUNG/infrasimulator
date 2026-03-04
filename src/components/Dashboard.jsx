@@ -36,7 +36,7 @@ const ScoreCard = ({ title, score, maxScore, color, details, downloads = {}, onD
                 );
             };
             return (
-                <div className="mt-4 pt-4 border-t flex flex-wrap gap-2 items-end">
+                <div className="mt-4 pt-4 border-t flex flex-wrap gap-2 items-start">
                     {btn('민자사업자_제외', '민자사업자 제외 DB')}
                     <div key="group-excl" className="flex flex-col gap-1">
                         {btn('관리그룹_포함', '관리그룹 포함')}
