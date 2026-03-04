@@ -70,11 +70,16 @@ export default function SimulatorPage() {
                         <ControlPanel
                             selectedGov={state.selectedGov}
                             excludePrivate={state.excludePrivate}
+                            enabledMetrics={state.enabledMetrics}
+                            planDeadlineYear={state.planDeadlineYear}
+                            lastRunDurationMs={state.lastRunDurationMs}
                             files={state.files}
                             isLoading={state.isLoading}
                             loadingMessage={state.loadingMessage}
                             onGovChange={setters.setSelectedGov}
                             onExcludeChange={setters.setExcludePrivate}
+                            onEnabledMetricsChange={setters.setEnabledMetrics}
+                            onPlanDeadlineYearChange={setters.setPlanDeadlineYear}
                             onFileChange={setters.setFile}
                             onRunSimulation={actions.runSingleSimulation}
                         />
@@ -111,6 +116,11 @@ export default function SimulatorPage() {
                     onSigunguToggle={() => setters.setIsAdminSigunguMode(!state.isAdminSigunguMode)}
                     selectedAgencyFilter={state.selectedAgencyFilter}
                     onAgencyFilterChange={setters.setSelectedAgencyFilter}
+                    planDeadlineYear={state.planDeadlineYear}
+                    onPlanDeadlineYearChange={setters.setPlanDeadlineYear}
+                    enabledMetrics={state.enabledMetrics}
+                    onEnabledMetricsChange={setters.setEnabledMetrics}
+                    lastBulkDurationMs={state.lastBulkDurationMs}
                 />
             )}
             

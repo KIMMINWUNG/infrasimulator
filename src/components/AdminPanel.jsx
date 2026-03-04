@@ -7,7 +7,23 @@ import FileUpload from './FileUpload';
 import { exportToExcel } from '../utils/excelUtils';
 import { getAgencyList } from '../utils/csvParser';
 
-export default function AdminPanel({ onClose, onRunBulkSim, bulkResults, isBulkLoading, bulkLoadingMessage, onDownloadBulkData, isSigunguMode, onSigunguToggle, selectedAgencyFilter, onAgencyFilterChange }) {
+export default function AdminPanel({
+    onClose,
+    onRunBulkSim,
+    bulkResults,
+    isBulkLoading,
+    bulkLoadingMessage,
+    onDownloadBulkData,
+    isSigunguMode,
+    onSigunguToggle,
+    selectedAgencyFilter,
+    onAgencyFilterChange,
+    planDeadlineYear,
+    onPlanDeadlineYearChange,
+    enabledMetrics,
+    onEnabledMetricsChange,
+    lastBulkDurationMs
+}) {
     const [adminFiles, setAdminFiles] = useState({
         planFile: null,
         noticeFile: null,
@@ -22,6 +38,27 @@ export default function AdminPanel({ onClose, onRunBulkSim, bulkResults, isBulkL
     const handleExport = () => {
         if (bulkResults.length === 0) return;
         exportToExcel(bulkResults, '전체_지자체_점수_결과.xlsx');
+    };
+
+    const handleMetricToggle = (key) => {
+        if (!onEnabledMetricsChange) return;
+        onEnabledMetricsChange(prev => {
+            const next = { ...prev, [key]: !prev[key] };
+            if (!next.plan && !next.maintain && !next.ordinance) {
+                return prev;
+            }
+            return next;
+        });
+    };
+
+    const formatDuration = (ms) => {
+        if (ms == null) return '';
+        const totalSeconds = Math.round(ms / 1000);
+        if (totalSeconds < 1) return '1초 미만';
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        if (minutes === 0) return `${seconds}초`;
+        return `${minutes}분 ${seconds.toString().padStart(2, '0')}초`;
     };
 
     return (
@@ -114,6 +151,73 @@ export default function AdminPanel({ onClose, onRunBulkSim, bulkResults, isBulkL
                         </div>
                     </div>
 
+                    {/* 평가 항목 / 연도 설정 */}
+                    <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-xl p-4 shadow-md border border-white border-opacity-20">
+                            <div className="flex items-center mb-3">
+                                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i className="fas fa-list-check text-blue-600"></i>
+                                </div>
+                                <h3 className="font-semibold text-gray-800">평가 항목 선택</h3>
+                            </div>
+                            <div className="space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleMetricToggle('plan')}
+                                    className={`w-full py-2 px-3 rounded-md text-sm font-semibold border transition-colors flex items-center justify-between ${enabledMetrics?.plan ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-300 text-gray-500'}`}
+                                    disabled={isBulkLoading}
+                                >
+                                    <span>실행계획 항목</span>
+                                    <span className="text-xs">{enabledMetrics?.plan ? '사용' : '미사용'}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleMetricToggle('maintain')}
+                                    className={`w-full py-2 px-3 rounded-md text-sm font-semibold border transition-colors flex items-center justify-between ${enabledMetrics?.maintain ? 'bg-green-50 border-green-500 text-green-700' : 'bg-gray-50 border-gray-300 text-gray-500'}`}
+                                    disabled={isBulkLoading}
+                                >
+                                    <span>최소유지관리기준 항목</span>
+                                    <span className="text-xs">{enabledMetrics?.maintain ? '사용' : '미사용'}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleMetricToggle('ordinance')}
+                                    className={`w-full py-2 px-3 rounded-md text-sm font-semibold border transition-colors flex items-center justify-between ${enabledMetrics?.ordinance ? 'bg-purple-50 border-purple-500 text-purple-700' : 'bg-gray-50 border-gray-300 text-gray-500'}`}
+                                    disabled={isBulkLoading}
+                                >
+                                    <span>충당금 조례 제정 항목</span>
+                                    <span className="text-xs">{enabledMetrics?.ordinance ? '사용' : '미사용'}</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-xl p-4 shadow-md border border-white border-opacity-20">
+                            <div className="flex items-center mb-3">
+                                <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i className="fas fa-calendar-day text-indigo-600"></i>
+                                </div>
+                                <h3 className="font-semibold text-gray-800">실적 연도 (실행계획 기한)</h3>
+                            </div>
+                            <div className="flex items-center justify-between bg-gray-100 p-1 rounded-lg">
+                                <button
+                                    type="button"
+                                    onClick={() => onPlanDeadlineYearChange(2025)}
+                                    className={`w-1/2 py-1 rounded-md text-sm font-semibold transition-colors ${planDeadlineYear === 2025 ? 'bg-blue-500 text-white' : 'text-gray-500'}`}
+                                    disabled={isBulkLoading}
+                                >
+                                    25년 실적 (2025.2.28)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onPlanDeadlineYearChange(2026)}
+                                    className={`w-1/2 py-1 rounded-md text-sm font-semibold transition-colors ${planDeadlineYear === 2026 ? 'bg-blue-500 text-white' : 'text-gray-500'}`}
+                                    disabled={isBulkLoading}
+                                >
+                                    26년 실적 (2026.2.28)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-4 md:col-span-1">
                             <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-xl p-4 shadow-md border border-white border-opacity-20">
@@ -123,10 +227,10 @@ export default function AdminPanel({ onClose, onRunBulkSim, bulkResults, isBulkL
                                     </div>
                                     <h3 className="font-semibold text-gray-800">일괄 계산용 파일 업로드</h3>
                                 </div>
-                                <FileUpload id="admin-plan" label="실행계획 파일" file={adminFiles.planFile} onFileChange={(f) => handleFileChange('planFile', f)} />
-                                <FileUpload id="admin-notice" label="고시문 파일" file={adminFiles.noticeFile} onFileChange={(f) => handleFileChange('noticeFile', f)} />
-                                <FileUpload id="admin-db" label="실적DB 파일" file={adminFiles.dbFile} onFileChange={(f) => handleFileChange('dbFile', f)} />
-                                <FileUpload id="admin-ord" label="조례 파일" file={adminFiles.ordinanceFile} onFileChange={(f) => handleFileChange('ordinanceFile', f)} />
+                                <FileUpload id="admin-plan" label="실행계획 파일" file={adminFiles.planFile} onFileChange={(f) => handleFileChange('planFile', f)} disabled={!enabledMetrics?.plan} />
+                                <FileUpload id="admin-notice" label="고시문 파일" file={adminFiles.noticeFile} onFileChange={(f) => handleFileChange('noticeFile', f)} disabled={!enabledMetrics?.maintain} />
+                                <FileUpload id="admin-db" label="실적DB 파일" file={adminFiles.dbFile} onFileChange={(f) => handleFileChange('dbFile', f)} disabled={!enabledMetrics?.maintain} />
+                                <FileUpload id="admin-ord" label="조례 파일" file={adminFiles.ordinanceFile} onFileChange={(f) => handleFileChange('ordinanceFile', f)} disabled={!enabledMetrics?.ordinance} />
                             </div>
                         </div>
                         <div className="flex flex-col md:col-span-2">
@@ -144,6 +248,7 @@ export default function AdminPanel({ onClose, onRunBulkSim, bulkResults, isBulkL
                                     <table className="w-full text-sm text-left">
                                         <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0">
                                             <tr>
+                                                <th className="p-3 font-semibold text-gray-700">순위</th>
                                                 <th className="p-3 font-semibold text-gray-700">지자체</th>
                                                 <th className="p-3 font-semibold text-gray-700">실행계획</th>
                                                 <th className="p-3 font-semibold text-gray-700">유지관리</th>
@@ -152,10 +257,11 @@ export default function AdminPanel({ onClose, onRunBulkSim, bulkResults, isBulkL
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {bulkResults
+                                            {[...bulkResults]
                                                 .sort((a, b) => parseFloat(b.총점) - parseFloat(a.총점))
                                                 .map((res, i) => (
                                                 <tr key={i} className="border-b border-gray-100 hover:bg-blue-50 transition-colors">
+                                                    <td className="p-3 font-semibold text-gray-800">{i + 1}위</td>
                                                     <td className="p-3 font-semibold text-gray-800">{res.지자체}</td>
                                                     <td className="p-3 text-gray-600">{res.실행계획}</td>
                                                     <td className="p-3 text-gray-600">{res.유지관리기준}</td>
@@ -189,7 +295,12 @@ export default function AdminPanel({ onClose, onRunBulkSim, bulkResults, isBulkL
                     </div>
                 </div>
 
-                <footer className="p-6 border-t border-gray-200 rounded-b-2xl flex justify-end gap-4" style={{ background: 'linear-gradient(90deg, #6366f1 0%, #7c3aed 50%, #6366f1 100%)', color: 'white' }}>
+                <footer className="p-6 border-t border-gray-200 rounded-b-2xl flex flex-col md:flex-row md:justify-end gap-4 items-center" style={{ background: 'linear-gradient(90deg, #6366f1 0%, #7c3aed 50%, #6366f1 100%)', color: 'white' }}>
+                    <div className="text-xs text-indigo-100 md:mr-auto">
+                        {!isBulkLoading && lastBulkDurationMs != null && (
+                            <span>소요시간: {formatDuration(lastBulkDurationMs)}</span>
+                        )}
+                    </div>
                     <button onClick={() => onRunBulkSim(adminFiles)} disabled={isBulkLoading} className="px-6 py-3 font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-400 transition-all transform hover:scale-105 shadow-lg">
                         <div className="flex items-center">
                             <i className="fas fa-play mr-2"></i>

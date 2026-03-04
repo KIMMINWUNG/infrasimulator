@@ -12,11 +12,16 @@ const cardHoverEffect = "transition-all duration-300 ease-in-out hover:-translat
 export default function ControlPanel({
     selectedGov,
     excludePrivate,
+    enabledMetrics,
+    planDeadlineYear,
+    lastRunDurationMs,
     files,
     isLoading,
     loadingMessage,
     onGovChange,
     onExcludeChange,
+    onEnabledMetricsChange,
+    onPlanDeadlineYearChange,
     onFileChange,
     onRunSimulation
 }) {
@@ -64,6 +69,28 @@ export default function ControlPanel({
         } else if (selectedAgency) {
             onGovChange(selectedAgency);
         }
+    };
+
+    const handleMetricToggle = (key) => {
+        if (!onEnabledMetricsChange) return;
+        onEnabledMetricsChange(prev => {
+            const next = { ...prev, [key]: !prev[key] };
+            // 모든 항목이 false가 되지 않도록 최소 하나는 유지
+            if (!next.plan && !next.maintain && !next.ordinance) {
+                return prev;
+            }
+            return next;
+        });
+    };
+
+    const formatDuration = (ms) => {
+        if (ms == null) return '';
+        const totalSeconds = Math.round(ms / 1000);
+        if (totalSeconds < 1) return '1초 미만';
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        if (minutes === 0) return `${seconds}초`;
+        return `${minutes}분 ${seconds.toString().padStart(2, '0')}초`;
     };
 
     return (
@@ -140,6 +167,52 @@ export default function ControlPanel({
                         </div>
                     )}
                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">평가 항목 선택</label>
+                        <div className="grid grid-cols-1 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => handleMetricToggle('plan')}
+                                className={`w-full py-2 px-3 rounded-md text-sm font-semibold border transition-colors flex items-center justify-between ${enabledMetrics?.plan ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-300 text-gray-500'}`}
+                            >
+                                <span>실행계획 항목</span>
+                                <span className="text-xs">{enabledMetrics?.plan ? '사용' : '미사용'}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleMetricToggle('maintain')}
+                                className={`w-full py-2 px-3 rounded-md text-sm font-semibold border transition-colors flex items-center justify-between ${enabledMetrics?.maintain ? 'bg-green-50 border-green-500 text-green-700' : 'bg-gray-50 border-gray-300 text-gray-500'}`}
+                            >
+                                <span>최소유지관리기준 항목</span>
+                                <span className="text-xs">{enabledMetrics?.maintain ? '사용' : '미사용'}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleMetricToggle('ordinance')}
+                                className={`w-full py-2 px-3 rounded-md text-sm font-semibold border transition-colors flex items-center justify-between ${enabledMetrics?.ordinance ? 'bg-purple-50 border-purple-500 text-purple-700' : 'bg-gray-50 border-gray-300 text-gray-500'}`}
+                            >
+                                <span>충당금 조례 제정 항목</span>
+                                <span className="text-xs">{enabledMetrics?.ordinance ? '사용' : '미사용'}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">실적 연도 (실행계획 제출 기한)</label>
+                        <div className="flex items-center justify-between bg-gray-100 p-1 rounded-lg">
+                            <button
+                                onClick={() => onPlanDeadlineYearChange(2025)}
+                                className={`w-1/2 py-1 rounded-md text-sm font-semibold transition-colors ${planDeadlineYear === 2025 ? 'bg-blue-500 text-white' : 'text-gray-500'}`}
+                            >
+                                25년 실적 (2025.2.28)
+                            </button>
+                            <button
+                                onClick={() => onPlanDeadlineYearChange(2026)}
+                                className={`w-1/2 py-1 rounded-md text-sm font-semibold transition-colors ${planDeadlineYear === 2026 ? 'bg-blue-500 text-white' : 'text-gray-500'}`}
+                            >
+                                26년 실적 (2026.2.28)
+                            </button>
+                        </div>
+                    </div>
+                    <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">민자사업자 제외</label>
                         <div className="flex items-center justify-between bg-gray-100 p-1 rounded-lg">
                             <button
@@ -172,6 +245,7 @@ export default function ControlPanel({
                         label="실행계획 확정현황 파일" 
                         file={files.planFile} 
                         onFileChange={(file) => onFileChange('planFile', file)}
+                        disabled={!enabledMetrics?.plan}
                         tooltipText="기반시설관리시스템 공지사항에 있는 '실행계획 확정현황' 엑셀 파일을 업로드 해주세요."
                     />
                     <FileUpload 
@@ -179,6 +253,7 @@ export default function ControlPanel({
                         label="최소유지관리기준 고시문 파일" 
                         file={files.noticeFile} 
                         onFileChange={(file) => onFileChange('noticeFile', file)}
+                        disabled={!enabledMetrics?.maintain}
                         tooltipText="기반시설관리시스템 공지사항에 있는 '최소유지관리기준 고시문' 엑셀 파일을 업로드 해주세요"
                     />
                     <FileUpload 
@@ -186,6 +261,7 @@ export default function ControlPanel({
                         label="실적DB 파일" 
                         file={files.dbFile} 
                         onFileChange={(file) => onFileChange('dbFile', file)}
+                        disabled={!enabledMetrics?.maintain}
                         tooltipText="기반시설관리시스템 통계현황-시설관리이력에서 다운로드한 실적 엑셀 파일을 업로드해주세요."
                     />
                     <FileUpload 
@@ -193,6 +269,7 @@ export default function ControlPanel({
                         label="충당금 조례 제정 파일" 
                         file={files.ordinanceFile} 
                         onFileChange={(file) => onFileChange('ordinanceFile', file)}
+                        disabled={!enabledMetrics?.ordinance}
                         tooltipText="기반시설관리시스템 공지사항에 있는 '충당금 조례 제정' 엑셀 파일을 업로드 해주세요."
                     />
                 </div>
@@ -216,6 +293,11 @@ export default function ControlPanel({
                     <span className="text-lg">시뮬레이션 시작</span>
                 )}
             </button>
+            {!isLoading && lastRunDurationMs != null && (
+                <p className="mt-2 text-xs text-gray-500 text-center">
+                    소요시간: {formatDuration(lastRunDurationMs)}
+                </p>
+            )}
         </div>
     );
 }

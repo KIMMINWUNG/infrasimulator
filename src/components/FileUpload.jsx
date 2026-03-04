@@ -5,10 +5,11 @@
 import React, { useRef } from 'react';
 import Tooltip from './Tooltip'; // Tooltip 컴포넌트 import
 
-export default function FileUpload({ id, label, file, onFileChange, tooltipText }) {
+export default function FileUpload({ id, label, file, onFileChange, tooltipText, disabled = false }) {
     const inputRef = useRef(null);
 
     const handleFileClick = () => {
+        if (disabled) return;
         inputRef.current.click();
     };
 
@@ -27,7 +28,7 @@ export default function FileUpload({ id, label, file, onFileChange, tooltipText 
             </div>
             <div
                 onClick={handleFileClick}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50 hover:border-blue-500"
+                className={`border-2 border-dashed rounded-lg p-4 text-center ${disabled ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-300 cursor-pointer hover:bg-gray-50 hover:border-blue-500'}`}
             >
                 <input
                     type="file"

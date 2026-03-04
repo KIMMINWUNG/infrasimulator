@@ -28,6 +28,8 @@ export default function useSimulator() {
     const [loadingMessage, setLoadingMessage] = useState('');
     const [notification, setNotification] = useState(null);
     const [downloadableData, setDownloadableData] = useState({});
+    const [lastRunDurationMs, setLastRunDurationMs] = useState(null);
+    const [lastBulkDurationMs, setLastBulkDurationMs] = useState(null);
     
     const [isBulkLoading, setIsBulkLoading] = useState(false);
     const [bulkLoadingMessage, setBulkLoadingMessage] = useState('');
@@ -35,8 +37,18 @@ export default function useSimulator() {
     const [bulkDownloadableData, setBulkDownloadableData] = useState(null);
     const [isAdminSigunguMode, setIsAdminSigunguMode] = useState(false);
     const [selectedAgencyFilter, setSelectedAgencyFilter] = useState('');
+    /** 실행계획 제출 기한 연도: 2025(25년 실적) | 2026(26년 실적) */
+    const [planDeadlineYear, setPlanDeadlineYear] = useState(2026);
+    /** 단일 실행 시 계산할 평가 항목 선택 상태 */
+    const [enabledMetrics, setEnabledMetrics] = useState({
+        plan: true,
+        maintain: true,
+        ordinance: true
+    });
     
     const workerRef = useRef(null);
+    const singleStartTimeRef = useRef(null);
+    const bulkStartTimeRef = useRef(null);
 
     useEffect(() => {
         workerRef.current = new Worker('/calculation.worker.js');
@@ -53,6 +65,11 @@ export default function useSimulator() {
                     showNotification('점수 계산이 완료되었습니다!', 'success');
                     setIsLoading(false);
                     setLoadingMessage('');
+                    if (singleStartTimeRef.current != null && typeof performance !== 'undefined') {
+                        const elapsed = performance.now() - singleStartTimeRef.current;
+                        setLastRunDurationMs(elapsed);
+                        singleStartTimeRef.current = null;
+                    }
                     break;
                 case 'bulk_progress':
                     setBulkLoadingMessage(message);
@@ -64,6 +81,11 @@ export default function useSimulator() {
                     setBulkLoadingMessage('일괄 계산 완료!');
                     setBulkDownloadableData(detailedData);
                     setIsBulkLoading(false);
+                    if (bulkStartTimeRef.current != null && typeof performance !== 'undefined') {
+                        const elapsedBulk = performance.now() - bulkStartTimeRef.current;
+                        setLastBulkDurationMs(elapsedBulk);
+                        bulkStartTimeRef.current = null;
+                    }
                     break;
                 case 'error':
                     showNotification(`계산 중 오류 발생: ${message}`, 'error');
@@ -71,6 +93,16 @@ export default function useSimulator() {
                     setLoadingMessage('');
                     setIsBulkLoading(false);
                     setBulkLoadingMessage('');
+                    if (singleStartTimeRef.current != null && typeof performance !== 'undefined') {
+                        const elapsedErr = performance.now() - singleStartTimeRef.current;
+                        setLastRunDurationMs(elapsedErr);
+                        singleStartTimeRef.current = null;
+                    }
+                    if (bulkStartTimeRef.current != null && typeof performance !== 'undefined') {
+                        const elapsedBulkErr = performance.now() - bulkStartTimeRef.current;
+                        setLastBulkDurationMs(elapsedBulkErr);
+                        bulkStartTimeRef.current = null;
+                    }
                     break;
                 default:
                     break;
@@ -97,11 +129,33 @@ export default function useSimulator() {
             showNotification('지자체를 먼저 선택해주세요.', 'error');
             return;
         }
-        if (!files.planFile || !files.noticeFile || !files.dbFile || !files.ordinanceFile) {
-            showNotification('모든 평가 파일을 업로드해야 합니다.', 'error');
+
+        // 최소 한 개 이상의 평가 항목이 선택되어야 함
+        if (!enabledMetrics.plan && !enabledMetrics.maintain && !enabledMetrics.ordinance) {
+            showNotification('최소 한 개 이상의 평가 항목을 선택해주세요.', 'error');
             return;
         }
 
+        // 선택된 항목별로 필요한 파일만 검사
+        if (enabledMetrics.plan && !files.planFile) {
+            showNotification('실행계획 항목을 선택하셨습니다. 실행계획 확정현황 파일을 업로드해주세요.', 'error');
+            return;
+        }
+        if (enabledMetrics.maintain && (!files.noticeFile || !files.dbFile)) {
+            showNotification('최소유지관리기준 항목을 선택하셨습니다. 고시문 파일과 실적DB 파일을 모두 업로드해주세요.', 'error');
+            return;
+        }
+        if (enabledMetrics.ordinance && !files.ordinanceFile) {
+            showNotification('충당금 조례 제정 항목을 선택하셨습니다. 충당금 조례 제정 파일을 업로드해주세요.', 'error');
+            return;
+        }
+
+        if (typeof performance !== 'undefined') {
+            singleStartTimeRef.current = performance.now();
+        } else {
+            singleStartTimeRef.current = null;
+        }
+        setLastRunDurationMs(null);
         setIsLoading(true);
         setScores(initialScores);
         setLoadingMessage('계산을 준비 중입니다...');
@@ -115,35 +169,79 @@ export default function useSimulator() {
             managementEntity = null; // "전체" 선택 시
         }
 
+        const workerConstants = {
+            PRIVATE_OWNERS: constants.PRIVATE_OWNERS,
+            LOCAL_GOV_LIST: constants.LOCAL_GOV_LIST,
+            HEADER_PLAN: constants.HEADER_PLAN,
+            HEADER_DB: constants.HEADER_DB,
+            HEADER_ORDINANCE: constants.HEADER_ORDINANCE,
+            GRADE_EXCLUDE: constants.GRADE_EXCLUDE,
+            PLAN_DEADLINE: constants.PLAN_DEADLINE,
+        };
+
         workerRef.current.postMessage({
             task: 'single',
             files,
             gov,
             managementEntity,
             excludePrivate,
-            constants
+            planDeadlineYear,
+            enabledMetrics,
+            constants: workerConstants
         });
     };
     
     const runBulkSimulation = async (adminFiles) => {
-        if (!adminFiles.planFile || !adminFiles.noticeFile || !adminFiles.dbFile || !adminFiles.ordinanceFile) {
-            showNotification('관리자 모드는 모든 파일을 업로드해야 합니다.', 'error');
+        // 최소 한 개 이상의 평가 항목이 선택되어야 함
+        if (!enabledMetrics.plan && !enabledMetrics.maintain && !enabledMetrics.ordinance) {
+            showNotification('관리자 모드: 최소 한 개 이상의 평가 항목을 선택해주세요.', 'error');
+            return;
+        }
+
+        // 선택된 항목별로 필요한 파일만 검사 (단일 모드와 동일한 규칙)
+        if (enabledMetrics.plan && !adminFiles.planFile) {
+            showNotification('관리자 모드: 실행계획 항목을 선택하셨습니다. 실행계획 파일을 업로드해주세요.', 'error');
+            return;
+        }
+        if (enabledMetrics.maintain && (!adminFiles.noticeFile || !adminFiles.dbFile)) {
+            showNotification('관리자 모드: 최소유지관리기준 항목을 선택하셨습니다. 고시문 파일과 실적DB 파일을 모두 업로드해주세요.', 'error');
+            return;
+        }
+        if (enabledMetrics.ordinance && !adminFiles.ordinanceFile) {
+            showNotification('관리자 모드: 충당금 조례 제정 항목을 선택하셨습니다. 조례 파일을 업로드해주세요.', 'error');
             return;
         }
         
+        if (typeof performance !== 'undefined') {
+            bulkStartTimeRef.current = performance.now();
+        } else {
+            bulkStartTimeRef.current = null;
+        }
+        setLastBulkDurationMs(null);
         setIsBulkLoading(true);
         setBulkResults([]);
         setBulkDownloadableData(null);
         setBulkLoadingMessage('일괄 계산을 시작합니다...');
 
+        const workerConstants = {
+            PRIVATE_OWNERS: constants.PRIVATE_OWNERS,
+            LOCAL_GOV_LIST: constants.LOCAL_GOV_LIST,
+            HEADER_PLAN: constants.HEADER_PLAN,
+            HEADER_DB: constants.HEADER_DB,
+            HEADER_ORDINANCE: constants.HEADER_ORDINANCE,
+            GRADE_EXCLUDE: constants.GRADE_EXCLUDE,
+            PLAN_DEADLINE: constants.PLAN_DEADLINE,
+        };
+
         workerRef.current.postMessage({
             task: 'bulk',
             files: adminFiles,
-            // 관리자 모드는 원본 로직(전체) 계산 기준. excludePrivate는 UI 설정을 따르도록 전달
             excludePrivate,
-            isAdminSigunguMode, // 관리자모드 시군구 토글 상태 전달
-            selectedAgencyFilter, // 선택된 관리감독기관 필터 전달
-            constants
+            isAdminSigunguMode,
+            selectedAgencyFilter,
+            planDeadlineYear,
+            enabledMetrics,
+            constants: workerConstants
         });
     };
 
@@ -167,8 +265,8 @@ export default function useSimulator() {
     };
 
     return {
-        state: { selectedGov, excludePrivate, files, scores, isLoading, loadingMessage, notification, downloadableData, isBulkLoading, bulkLoadingMessage, bulkResults, isAdminSigunguMode, selectedAgencyFilter },
-        setters: { setSelectedGov, setExcludePrivate, setFile, setIsAdminSigunguMode, setSelectedAgencyFilter },
+        state: { selectedGov, excludePrivate, planDeadlineYear, enabledMetrics, lastRunDurationMs, lastBulkDurationMs, files, scores, isLoading, loadingMessage, notification, downloadableData, isBulkLoading, bulkLoadingMessage, bulkResults, isAdminSigunguMode, selectedAgencyFilter },
+        setters: { setSelectedGov, setExcludePrivate, setPlanDeadlineYear, setEnabledMetrics, setFile, setIsAdminSigunguMode, setSelectedAgencyFilter },
         actions: { runSingleSimulation, runBulkSimulation, downloadDetailedData, downloadBulkDetailedData, clearNotification, showNotification }
     };
 }

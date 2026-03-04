@@ -364,9 +364,12 @@ const getManagementEntitiesForGov = (gov) => {
     return managementList[gov] || [];
 };
 
-const calculatePlan = (sheet, gov, managementEntity, excludePrivate, constants) => {
+const calculatePlan = (sheet, gov, managementEntity, excludePrivate, constants, planDeadlineYear) => {
     let filtered;
-    
+    const year = planDeadlineYear === 2025 ? 2025 : 2026;
+    const deadlineStr = (constants.PLAN_DEADLINE && constants.PLAN_DEADLINE[year]) || (year === 2026 ? "2026-02-28T23:59:59" : "2025-02-28T23:59:59");
+    const deadline = new Date(deadlineStr);
+
     // 시군구 확장 모드: 관리주체가 선택된 경우
     if (managementEntity && managementEntity !== "전체") {
         // 관리감독기관(B열)과 관리주체(C열) 모두 매칭
@@ -385,10 +388,10 @@ const calculatePlan = (sheet, gov, managementEntity, excludePrivate, constants) 
         const dateValue = r["결재이력"];
         if (typeof dateValue === 'number') {
             const date = self.XLSX.SSF.parse_date_code(dateValue);
-            return new Date(date.y, date.m - 1, date.d) <= new Date("2025-02-28T23:59:59");
+            return new Date(date.y, date.m - 1, date.d) <= deadline;
         }
         const date = new Date(dateValue);
-        return !isNaN(date) && date <= new Date("2025-02-28T23:59:59");
+        return !isNaN(date) && date <= deadline;
     });
     
     const missed = finalData.filter(r => !done.includes(r));
@@ -485,28 +488,42 @@ const calculateOrdinance = (sheet, gov) => {
 
 // --- 메인 이벤트 리스너 ---
 self.onmessage = async (e) => {
-    const { task, files, gov, managementEntity, excludePrivate, isAdminSigunguMode, selectedAgencyFilter, constants } = e.data;
+    const { task, files, gov, managementEntity, excludePrivate, isAdminSigunguMode, selectedAgencyFilter, constants, planDeadlineYear, enabledMetrics } = e.data;
+    const planYear = planDeadlineYear === 2025 ? 2025 : 2026;
+    const metrics = enabledMetrics || { plan: true, maintain: true, ordinance: true };
     
     if (task === 'single') {
         try {
-            self.postMessage({ type: 'progress', message: '실행계획 파일 읽는 중...' });
-            const planSheet = await readExcelToJson(files.planFile, constants.HEADER_PLAN);
-            const planResult = calculatePlan(planSheet, gov, managementEntity, excludePrivate, constants);
-            self.postMessage({ type: 'progress', message: '실행계획 평가 완료.' });
-            await yieldToMain();
+            // 실행계획
+            let planResult = { score: 0, details: {}, downloadableData: {} };
+            if (metrics.plan) {
+                self.postMessage({ type: 'progress', message: '실행계획 파일 읽는 중...' });
+                const planSheet = await readExcelToJson(files.planFile, constants.HEADER_PLAN);
+                planResult = calculatePlan(planSheet, gov, managementEntity, excludePrivate, constants, planYear);
+                self.postMessage({ type: 'progress', message: '실행계획 평가 완료.' });
+                await yieldToMain();
+            }
 
-            self.postMessage({ type: 'progress', message: '고시문 파일 읽는 중...' });
-            const noticeWB = await readRawExcel(files.noticeFile);
-            self.postMessage({ type: 'progress', message: '실적DB 파일 읽는 중... (시간 소요)' });
-            const dbSheet = await readExcelToJson(files.dbFile, constants.HEADER_DB);
-            const maintainResult = calculateMaintain(noticeWB, dbSheet, gov, managementEntity, excludePrivate, constants);
-            self.postMessage({ type: 'progress', message: '유지관리기준 평가 완료.' });
-            await yieldToMain();
+            // 최소유지관리기준
+            let maintainResult = { score: 0, details: {}, downloadableData: {} };
+            if (metrics.maintain) {
+                self.postMessage({ type: 'progress', message: '고시문 파일 읽는 중...' });
+                const noticeWB = await readRawExcel(files.noticeFile);
+                self.postMessage({ type: 'progress', message: '실적DB 파일 읽는 중... (시간 소요)' });
+                const dbSheet = await readExcelToJson(files.dbFile, constants.HEADER_DB);
+                maintainResult = calculateMaintain(noticeWB, dbSheet, gov, managementEntity, excludePrivate, constants);
+                self.postMessage({ type: 'progress', message: '유지관리기준 평가 완료.' });
+                await yieldToMain();
+            }
             
-            self.postMessage({ type: 'progress', message: '조례 파일 읽는 중...' });
-            const ordinanceSheet = await readExcelToJson(files.ordinanceFile, constants.HEADER_ORDINANCE);
-            const ordinanceResult = calculateOrdinance(ordinanceSheet, gov);
-            self.postMessage({ type: 'progress', message: '조례 제정 평가 완료.' });
+            // 조례 제정
+            let ordinanceResult = { score: 0, details: {}, downloadableData: {} };
+            if (metrics.ordinance) {
+                self.postMessage({ type: 'progress', message: '조례 파일 읽는 중...' });
+                const ordinanceSheet = await readExcelToJson(files.ordinanceFile, constants.HEADER_ORDINANCE);
+                ordinanceResult = calculateOrdinance(ordinanceSheet, gov);
+                self.postMessage({ type: 'progress', message: '조례 제정 평가 완료.' });
+            }
 
             self.postMessage({ 
                 type: 'done', 
@@ -521,10 +538,23 @@ self.onmessage = async (e) => {
     if (task === 'bulk') {
         try {
             self.postMessage({ type: 'bulk_progress', message: '일괄 계산용 파일 읽는 중...' });
-            const planSheet = await readExcelToJson(files.planFile, constants.HEADER_PLAN);
-            const noticeWB = await readRawExcel(files.noticeFile);
-            const dbSheet = await readExcelToJson(files.dbFile, constants.HEADER_DB);
-            const ordinanceSheet = await readExcelToJson(files.ordinanceFile, constants.HEADER_ORDINANCE);
+            const metricsForBulk = metrics || { plan: true, maintain: true, ordinance: true };
+
+            let planSheet = null;
+            let noticeWB = null;
+            let dbSheet = null;
+            let ordinanceSheet = null;
+
+            if (metricsForBulk.plan) {
+                planSheet = await readExcelToJson(files.planFile, constants.HEADER_PLAN);
+            }
+            if (metricsForBulk.maintain) {
+                noticeWB = await readRawExcel(files.noticeFile);
+                dbSheet = await readExcelToJson(files.dbFile, constants.HEADER_DB);
+            }
+            if (metricsForBulk.ordinance) {
+                ordinanceSheet = await readExcelToJson(files.ordinanceFile, constants.HEADER_ORDINANCE);
+            }
             
             const allDetailedData = {
                 '실행계획_미제출': {}, '관리그룹_포함': {}, '관리그룹_제외': {},
@@ -582,9 +612,20 @@ self.onmessage = async (e) => {
                 await yieldToMain();
 
                 try {
-                    const planResult = calculatePlan(planSheet, target.gov, target.managementEntity, (excludePrivate ?? true), constants);
-                    const maintainResult = calculateMaintain(noticeWB, dbSheet, target.gov, target.managementEntity, (excludePrivate ?? true), constants);
-                    const ordinanceResult = calculateOrdinance(ordinanceSheet, target.gov);
+                    let planResult = { score: 0, details: {}, downloadableData: {} };
+                    if (metricsForBulk.plan) {
+                        planResult = calculatePlan(planSheet, target.gov, target.managementEntity, (excludePrivate ?? true), constants, planYear);
+                    }
+
+                    let maintainResult = { score: 0, details: {}, downloadableData: {} };
+                    if (metricsForBulk.maintain) {
+                        maintainResult = calculateMaintain(noticeWB, dbSheet, target.gov, target.managementEntity, (excludePrivate ?? true), constants);
+                    }
+
+                    let ordinanceResult = { score: 0, details: {}, downloadableData: {} };
+                    if (metricsForBulk.ordinance) {
+                        ordinanceResult = calculateOrdinance(ordinanceSheet, target.gov);
+                    }
                     
                     const newResult = {
                         지자체: target.displayName,
@@ -595,12 +636,22 @@ self.onmessage = async (e) => {
                     };
                     self.postMessage({ type: 'bulk_result_partial', result: newResult });
 
-                    // 상세 데이터 수집
-                    allDetailedData['실행계획_미제출'][target.displayName] = planResult.downloadableData['실행계획_미제출'];
-                    allDetailedData['관리그룹_포함'][target.displayName] = maintainResult.downloadableData['관리그룹_포함'];
-                    allDetailedData['관리그룹_제외'][target.displayName] = maintainResult.downloadableData['관리그룹_제외'];
-                    allDetailedData['목표등급_만족'][target.displayName] = maintainResult.downloadableData['목표등급_만족'];
-                    allDetailedData['목표등급_불만족'][target.displayName] = maintainResult.downloadableData['목표등급_불만족'];
+                    // 상세 데이터 수집 — 개별 모드와 동일하게, 선택된 항목에 대해서만 데이터 수집
+                    allDetailedData['실행계획_미제출'][target.displayName] = metricsForBulk.plan
+                        ? (planResult.downloadableData['실행계획_미제출'] || []).slice(0)
+                        : [];
+                    allDetailedData['관리그룹_포함'][target.displayName] = metricsForBulk.maintain
+                        ? (maintainResult.downloadableData['관리그룹_포함'] || []).slice(0)
+                        : [];
+                    allDetailedData['관리그룹_제외'][target.displayName] = metricsForBulk.maintain
+                        ? (maintainResult.downloadableData['관리그룹_제외'] || []).slice(0)
+                        : [];
+                    allDetailedData['목표등급_만족'][target.displayName] = metricsForBulk.maintain
+                        ? (maintainResult.downloadableData['목표등급_만족'] || []).slice(0)
+                        : [];
+                    allDetailedData['목표등급_불만족'][target.displayName] = metricsForBulk.maintain
+                        ? (maintainResult.downloadableData['목표등급_불만족'] || []).slice(0)
+                        : [];
 
                 } catch (govError) {
                      console.warn(`[${target.displayName}] 점수 계산 실패: ${govError.message}`);
